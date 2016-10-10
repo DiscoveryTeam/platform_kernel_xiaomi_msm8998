@@ -2,8 +2,12 @@
  *
  * Android IPC Subsystem
  *
+<<<<<<< HEAD
  * Copyright (C) 2007-2016 Google, Inc.
  * Copyright (C) 2017 XiaoMi, Inc.
+=======
+ * Copyright (C) 2007-2017 Google, Inc.
+>>>>>>> f6f39f1... FROMLIST: binder: move binder_alloc to separate file
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -27,10 +31,19 @@
 #include <linux/seq_file.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
+<<<<<<< HEAD
 #include "binder.h"
 #include "binder_alloc.h"
 #include "binder_trace.h"
 
+=======
+#include <linux/sched.h>
+#include "binder_alloc.h"
+#include "binder_trace.h"
+
+static DEFINE_MUTEX(binder_alloc_mmap_lock);
+
+>>>>>>> f6f39f1... FROMLIST: binder: move binder_alloc to separate file
 enum {
 	BINDER_DEBUG_OPEN_CLOSE             = 1U << 1,
 	BINDER_DEBUG_BUFFER_ALLOC           = 1U << 2,
@@ -47,8 +60,13 @@ module_param_named(debug_mask, binder_alloc_debug_mask,
 			pr_info(x); \
 	} while (0)
 
+<<<<<<< HEAD
 static size_t binder_buffer_size(struct binder_alloc *alloc,
 				 struct binder_buffer *buffer)
+=======
+static size_t binder_alloc_buffer_size(struct binder_alloc *alloc,
+				       struct binder_buffer *buffer)
+>>>>>>> f6f39f1... FROMLIST: binder: move binder_alloc to separate file
 {
 	if (list_is_last(&buffer->entry, &alloc->buffers))
 		return alloc->buffer +
@@ -68,7 +86,11 @@ static void binder_insert_free_buffer(struct binder_alloc *alloc,
 
 	BUG_ON(!new_buffer->free);
 
+<<<<<<< HEAD
 	new_buffer_size = binder_buffer_size(alloc, new_buffer);
+=======
+	new_buffer_size = binder_alloc_buffer_size(alloc, new_buffer);
+>>>>>>> f6f39f1... FROMLIST: binder: move binder_alloc to separate file
 
 	binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC,
 		     "%d: add free buffer, size %zd, at %pK\n",
@@ -79,7 +101,11 @@ static void binder_insert_free_buffer(struct binder_alloc *alloc,
 		buffer = rb_entry(parent, struct binder_buffer, rb_node);
 		BUG_ON(!buffer->free);
 
+<<<<<<< HEAD
 		buffer_size = binder_buffer_size(alloc, buffer);
+=======
+		buffer_size = binder_alloc_buffer_size(alloc, buffer);
+>>>>>>> f6f39f1... FROMLIST: binder: move binder_alloc to separate file
 
 		if (new_buffer_size < buffer_size)
 			p = &parent->rb_left;
@@ -90,8 +116,13 @@ static void binder_insert_free_buffer(struct binder_alloc *alloc,
 	rb_insert_color(&new_buffer->rb_node, &alloc->free_buffers);
 }
 
+<<<<<<< HEAD
 static void binder_insert_allocated_buffer(struct binder_alloc *alloc,
 					   struct binder_buffer *new_buffer)
+=======
+static void binder_insert_allocated_buffer_locked(
+		struct binder_alloc *alloc, struct binder_buffer *new_buffer)
+>>>>>>> f6f39f1... FROMLIST: binder: move binder_alloc to separate file
 {
 	struct rb_node **p = &alloc->allocated_buffers.rb_node;
 	struct rb_node *parent = NULL;
@@ -115,6 +146,7 @@ static void binder_insert_allocated_buffer(struct binder_alloc *alloc,
 	rb_insert_color(&new_buffer->rb_node, &alloc->allocated_buffers);
 }
 
+<<<<<<< HEAD
 struct binder_buffer *binder_alloc_buffer_lookup(struct binder_alloc *alloc,
 						 uintptr_t user_ptr)
 {
@@ -127,6 +159,19 @@ struct binder_buffer *binder_alloc_buffer_lookup(struct binder_alloc *alloc,
 		- offsetof(struct binder_buffer, data));
 
 	n = alloc->allocated_buffers.rb_node;
+=======
+static struct binder_buffer *binder_alloc_buffer_lookup_locked(
+		struct binder_alloc *alloc,
+		uintptr_t user_ptr)
+{
+	struct rb_node *n = alloc->allocated_buffers.rb_node;
+	struct binder_buffer *buffer;
+	struct binder_buffer *kern_ptr;
+
+	kern_ptr = (struct binder_buffer *)(user_ptr - alloc->user_buffer_offset
+		- offsetof(struct binder_buffer, data));
+
+>>>>>>> f6f39f1... FROMLIST: binder: move binder_alloc to separate file
 	while (n) {
 		buffer = rb_entry(n, struct binder_buffer, rb_node);
 		BUG_ON(buffer->free);
@@ -135,6 +180,7 @@ struct binder_buffer *binder_alloc_buffer_lookup(struct binder_alloc *alloc,
 			n = n->rb_left;
 		else if (kern_ptr > buffer)
 			n = n->rb_right;
+<<<<<<< HEAD
 		else {
 			mutex_unlock(&alloc->mutex);
 			return buffer;
@@ -144,6 +190,36 @@ struct binder_buffer *binder_alloc_buffer_lookup(struct binder_alloc *alloc,
 	return NULL;
 }
 
+=======
+		else
+			return buffer;
+	}
+	return NULL;
+}
+
+/**
+ * binder_alloc_buffer_lookup() - get buffer given user ptr
+ * @alloc:	binder_alloc for this proc
+ * @user_ptr:	User pointer to buffer data
+ *
+ * Validate userspace pointer to buffer data and return buffer corresponding to
+ * that user pointer. Search the rb tree for buffer that matches user data
+ * pointer.
+ *
+ * Return:	Pointer to buffer or NULL
+ */
+struct binder_buffer *binder_alloc_buffer_lookup(struct binder_alloc *alloc,
+						 uintptr_t user_ptr)
+{
+	struct binder_buffer *buffer;
+
+	mutex_lock(&alloc->mutex);
+	buffer = binder_alloc_buffer_lookup_locked(alloc, user_ptr);
+	mutex_unlock(&alloc->mutex);
+	return buffer;
+}
+
+>>>>>>> f6f39f1... FROMLIST: binder: move binder_alloc to separate file
 static int binder_update_page_range(struct binder_alloc *alloc, int allocate,
 				    void *start, void *end,
 				    struct vm_area_struct *vma)
@@ -243,6 +319,7 @@ err_no_vma:
 		up_write(&mm->mmap_sem);
 		mmput(mm);
 	}
+<<<<<<< HEAD
 	return vma ? -ENOMEM : -ESRCH;
 }
 
@@ -253,12 +330,25 @@ struct binder_buffer *binder_alloc_new_buf(struct binder_alloc *alloc,
 					   int is_async)
 {
 	struct rb_node *n;
+=======
+	return -ENOMEM;
+}
+
+struct binder_buffer *binder_alloc_new_buf_locked(struct binder_alloc *alloc,
+						  size_t data_size,
+						  size_t offsets_size,
+						  size_t extra_buffers_size,
+						  int is_async)
+{
+	struct rb_node *n = alloc->free_buffers.rb_node;
+>>>>>>> f6f39f1... FROMLIST: binder: move binder_alloc to separate file
 	struct binder_buffer *buffer;
 	size_t buffer_size;
 	struct rb_node *best_fit = NULL;
 	void *has_page_addr;
 	void *end_page_addr;
 	size_t size, data_offsets_size;
+<<<<<<< HEAD
 	struct binder_buffer *eret;
 	int ret;
 
@@ -268,6 +358,13 @@ struct binder_buffer *binder_alloc_new_buf(struct binder_alloc *alloc,
 		       alloc->pid);
 		eret = ERR_PTR(-ESRCH);
 		goto error_unlock;
+=======
+
+	if (alloc->vma == NULL) {
+		pr_err("%d: binder_alloc_buf, no vma\n",
+		       alloc->pid);
+		return NULL;
+>>>>>>> f6f39f1... FROMLIST: binder: move binder_alloc to separate file
 	}
 
 	data_offsets_size = ALIGN(data_size, sizeof(void *)) +
@@ -277,22 +374,31 @@ struct binder_buffer *binder_alloc_new_buf(struct binder_alloc *alloc,
 		binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC,
 				"%d: got transaction with invalid size %zd-%zd\n",
 				alloc->pid, data_size, offsets_size);
+<<<<<<< HEAD
 		eret = ERR_PTR(-EINVAL);
 		goto error_unlock;
+=======
+		return NULL;
+>>>>>>> f6f39f1... FROMLIST: binder: move binder_alloc to separate file
 	}
 	size = data_offsets_size + ALIGN(extra_buffers_size, sizeof(void *));
 	if (size < data_offsets_size || size < extra_buffers_size) {
 		binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC,
 				"%d: got transaction with invalid extra_buffers_size %zd\n",
 				alloc->pid, extra_buffers_size);
+<<<<<<< HEAD
 		eret = ERR_PTR(-EINVAL);
 		goto error_unlock;
+=======
+		return NULL;
+>>>>>>> f6f39f1... FROMLIST: binder: move binder_alloc to separate file
 	}
 	if (is_async &&
 	    alloc->free_async_space < size + sizeof(struct binder_buffer)) {
 		binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC,
 			     "%d: binder_alloc_buf size %zd failed, no async space left\n",
 			      alloc->pid, size);
+<<<<<<< HEAD
 		eret = ERR_PTR(-ENOSPC);
 		goto error_unlock;
 	}
@@ -302,6 +408,15 @@ struct binder_buffer *binder_alloc_new_buf(struct binder_alloc *alloc,
 		buffer = rb_entry(n, struct binder_buffer, rb_node);
 		BUG_ON(!buffer->free);
 		buffer_size = binder_buffer_size(alloc, buffer);
+=======
+		return NULL;
+	}
+
+	while (n) {
+		buffer = rb_entry(n, struct binder_buffer, rb_node);
+		BUG_ON(!buffer->free);
+		buffer_size = binder_alloc_buffer_size(alloc, buffer);
+>>>>>>> f6f39f1... FROMLIST: binder: move binder_alloc to separate file
 
 		if (size < buffer_size) {
 			best_fit = n;
@@ -314,6 +429,7 @@ struct binder_buffer *binder_alloc_new_buf(struct binder_alloc *alloc,
 		}
 	}
 	if (best_fit == NULL) {
+<<<<<<< HEAD
 		size_t allocated_buffers = 0;
 		size_t largest_alloc_size = 0;
 		size_t total_alloc_size = 0;
@@ -350,6 +466,15 @@ struct binder_buffer *binder_alloc_new_buf(struct binder_alloc *alloc,
 	if (n == NULL) {
 		buffer = rb_entry(best_fit, struct binder_buffer, rb_node);
 		buffer_size = binder_buffer_size(alloc, buffer);
+=======
+		pr_err("%d: binder_alloc_buf size %zd failed, no address space\n",
+			alloc->pid, size);
+		return NULL;
+	}
+	if (n == NULL) {
+		buffer = rb_entry(best_fit, struct binder_buffer, rb_node);
+		buffer_size = binder_alloc_buffer_size(alloc, buffer);
+>>>>>>> f6f39f1... FROMLIST: binder: move binder_alloc to separate file
 	}
 
 	binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC,
@@ -368,6 +493,7 @@ struct binder_buffer *binder_alloc_new_buf(struct binder_alloc *alloc,
 		(void *)PAGE_ALIGN((uintptr_t)buffer->data + buffer_size);
 	if (end_page_addr > has_page_addr)
 		end_page_addr = has_page_addr;
+<<<<<<< HEAD
 	ret = binder_update_page_range(alloc, 1,
 	    (void *)PAGE_ALIGN((uintptr_t)buffer->data), end_page_addr, NULL);
 	if (ret) {
@@ -378,6 +504,15 @@ struct binder_buffer *binder_alloc_new_buf(struct binder_alloc *alloc,
 	rb_erase(best_fit, &alloc->free_buffers);
 	buffer->free = 0;
 	binder_insert_allocated_buffer(alloc, buffer);
+=======
+	if (binder_update_page_range(alloc, 1,
+	    (void *)PAGE_ALIGN((uintptr_t)buffer->data), end_page_addr, NULL))
+		return NULL;
+
+	rb_erase(best_fit, &alloc->free_buffers);
+	buffer->free = 0;
+	binder_insert_allocated_buffer_locked(alloc, buffer);
+>>>>>>> f6f39f1... FROMLIST: binder: move binder_alloc to separate file
 	if (buffer_size != size) {
 		struct binder_buffer *new_buffer = (void *)buffer->data + size;
 
@@ -398,6 +533,7 @@ struct binder_buffer *binder_alloc_new_buf(struct binder_alloc *alloc,
 			     "%d: binder_alloc_buf size %zd async free %zd\n",
 			      alloc->pid, size, alloc->free_async_space);
 	}
+<<<<<<< HEAD
 	mutex_unlock(&alloc->mutex);
 
 	return buffer;
@@ -405,6 +541,39 @@ struct binder_buffer *binder_alloc_new_buf(struct binder_alloc *alloc,
 error_unlock:
 	mutex_unlock(&alloc->mutex);
 	return eret;
+=======
+	return buffer;
+}
+
+/**
+ * binder_alloc_new_buf() - Allocate a new binder buffer
+ * @alloc:              binder_alloc for this proc
+ * @data_size:          size of user data buffer
+ * @offsets_size:       user specified buffer offset
+ * @extra_buffers_size: size of extra space for meta-data (eg, security context)
+ * @is_async:           buffer for async transaction
+ *
+ * Allocate a new buffer given the requested sizes. Returns
+ * the kernel version of the buffer pointer. The size allocated
+ * is the sum of the three given sizes (each rounded up to
+ * pointer-sized boundary)
+ *
+ * Return:	The allocated buffer or %NULL if error
+ */
+struct binder_buffer *binder_alloc_new_buf(struct binder_alloc *alloc,
+					   size_t data_size,
+					   size_t offsets_size,
+					   size_t extra_buffers_size,
+					   int is_async)
+{
+	struct binder_buffer *buffer;
+
+	mutex_lock(&alloc->mutex);
+	buffer = binder_alloc_new_buf_locked(alloc, data_size, offsets_size,
+					     extra_buffers_size, is_async);
+	mutex_unlock(&alloc->mutex);
+	return buffer;
+>>>>>>> f6f39f1... FROMLIST: binder: move binder_alloc to separate file
 }
 
 static void *buffer_start_page(struct binder_buffer *buffer)
@@ -467,7 +636,11 @@ static void binder_free_buf_locked(struct binder_alloc *alloc,
 {
 	size_t size, buffer_size;
 
+<<<<<<< HEAD
 	buffer_size = binder_buffer_size(alloc, buffer);
+=======
+	buffer_size = binder_alloc_buffer_size(alloc, buffer);
+>>>>>>> f6f39f1... FROMLIST: binder: move binder_alloc to separate file
 
 	size = ALIGN(buffer->data_size, sizeof(void *)) +
 		ALIGN(buffer->offsets_size, sizeof(void *)) +
@@ -520,6 +693,16 @@ static void binder_free_buf_locked(struct binder_alloc *alloc,
 	binder_insert_free_buffer(alloc, buffer);
 }
 
+<<<<<<< HEAD
+=======
+/**
+ * binder_alloc_free_buf() - free a binder buffer
+ * @alloc:	binder_alloc for this proc
+ * @buffer:	kernel pointer to buffer
+ *
+ * Free the buffer allocated via binder_alloc_new_buffer()
+ */
+>>>>>>> f6f39f1... FROMLIST: binder: move binder_alloc to separate file
 void binder_alloc_free_buf(struct binder_alloc *alloc,
 			    struct binder_buffer *buffer)
 {
@@ -528,6 +711,22 @@ void binder_alloc_free_buf(struct binder_alloc *alloc,
 	mutex_unlock(&alloc->mutex);
 }
 
+<<<<<<< HEAD
+=======
+/**
+ * binder_alloc_mmap_handler() - map virtual address space for proc
+ * @alloc:	alloc structure for this proc
+ * @vma:	vma passed to mmap()
+ *
+ * Called by binder_mmap() to initialize the space specified in
+ * vma for allocating binder buffers
+ *
+ * Return:
+ *      0 = success
+ *      -EBUSY = address space already mapped
+ *      -ENOMEM = failed to map memory to given address space
+ */
+>>>>>>> f6f39f1... FROMLIST: binder: move binder_alloc to separate file
 int binder_alloc_mmap_handler(struct binder_alloc *alloc,
 			      struct vm_area_struct *vma)
 {
@@ -536,7 +735,11 @@ int binder_alloc_mmap_handler(struct binder_alloc *alloc,
 	const char *failure_string;
 	struct binder_buffer *buffer;
 
+<<<<<<< HEAD
 	mutex_lock(&alloc->mutex);
+=======
+	mutex_lock(&binder_alloc_mmap_lock);
+>>>>>>> f6f39f1... FROMLIST: binder: move binder_alloc to separate file
 	if (alloc->buffer) {
 		ret = -EBUSY;
 		failure_string = "already mapped";
@@ -550,8 +753,14 @@ int binder_alloc_mmap_handler(struct binder_alloc *alloc,
 		goto err_get_vm_area_failed;
 	}
 	alloc->buffer = area->addr;
+<<<<<<< HEAD
 	WRITE_ONCE(alloc->user_buffer_offset,
 			vma->vm_start - (uintptr_t)alloc->buffer);
+=======
+	alloc->user_buffer_offset =
+		vma->vm_start - (uintptr_t)alloc->buffer;
+	mutex_unlock(&binder_alloc_mmap_lock);
+>>>>>>> f6f39f1... FROMLIST: binder: move binder_alloc to separate file
 
 #ifdef CONFIG_CPU_CACHE_VIPT
 	if (cache_is_vipt_aliasing()) {
@@ -586,11 +795,17 @@ int binder_alloc_mmap_handler(struct binder_alloc *alloc,
 	buffer->free = 1;
 	binder_insert_free_buffer(alloc, buffer);
 	alloc->free_async_space = alloc->buffer_size / 2;
+<<<<<<< HEAD
 
 	barrier();
 	alloc->vma = vma;
 	alloc->vma_vm_mm = vma->vm_mm;
 	mutex_unlock(&alloc->mutex);
+=======
+	barrier();
+	alloc->vma = vma;
+	alloc->vma_vm_mm = vma->vm_mm;
+>>>>>>> f6f39f1... FROMLIST: binder: move binder_alloc to separate file
 
 	return 0;
 
@@ -598,11 +813,19 @@ err_alloc_small_buf_failed:
 	kfree(alloc->pages);
 	alloc->pages = NULL;
 err_alloc_pages_failed:
+<<<<<<< HEAD
+=======
+	mutex_lock(&binder_alloc_mmap_lock);
+>>>>>>> f6f39f1... FROMLIST: binder: move binder_alloc to separate file
 	vfree(alloc->buffer);
 	alloc->buffer = NULL;
 err_get_vm_area_failed:
 err_already_mapped:
+<<<<<<< HEAD
 	mutex_unlock(&alloc->mutex);
+=======
+	mutex_unlock(&binder_alloc_mmap_lock);
+>>>>>>> f6f39f1... FROMLIST: binder: move binder_alloc to separate file
 	pr_err("%s: %d %lx-%lx %s failed %d\n", __func__,
 	       alloc->pid, vma->vm_start, vma->vm_end, failure_string, ret);
 	return ret;
@@ -623,7 +846,11 @@ void binder_alloc_deferred_release(struct binder_alloc *alloc)
 
 		buffer = rb_entry(n, struct binder_buffer, rb_node);
 
+<<<<<<< HEAD
 		/* Transactiopn should already have been freed */
+=======
+		/* Transaction should already have been freed */
+>>>>>>> f6f39f1... FROMLIST: binder: move binder_alloc to separate file
 		BUG_ON(buffer->transaction);
 
 		binder_free_buf_locked(alloc, buffer);
@@ -661,6 +888,7 @@ void binder_alloc_deferred_release(struct binder_alloc *alloc)
 static void print_binder_buffer(struct seq_file *m, const char *prefix,
 				struct binder_buffer *buffer)
 {
+<<<<<<< HEAD
 	seq_printf(m, "%s %d: %pK size %zd:%zd:%zd %s\n",
 		   prefix, buffer->debug_id, buffer->data,
 		   buffer->data_size, buffer->offsets_size,
@@ -668,6 +896,22 @@ static void print_binder_buffer(struct seq_file *m, const char *prefix,
 		   buffer->transaction ? "active" : "delivered");
 }
 
+=======
+	seq_printf(m, "%s %d: %pK size %zd:%zd %s\n",
+		   prefix, buffer->debug_id, buffer->data,
+		   buffer->data_size, buffer->offsets_size,
+		   buffer->transaction ? "active" : "delivered");
+}
+
+/**
+ * binder_alloc_print_allocated() - print buffer info
+ * @m:     seq_file for output via seq_printf()
+ * @alloc: binder_alloc for this proc
+ *
+ * Prints information about every buffer associated with
+ * the binder_alloc state to the given seq_file
+ */
+>>>>>>> f6f39f1... FROMLIST: binder: move binder_alloc to separate file
 void binder_alloc_print_allocated(struct seq_file *m,
 				  struct binder_alloc *alloc)
 {
@@ -680,6 +924,15 @@ void binder_alloc_print_allocated(struct seq_file *m,
 	mutex_unlock(&alloc->mutex);
 }
 
+<<<<<<< HEAD
+=======
+/**
+ * binder_alloc_get_allocated_count() - return count of buffers
+ * @alloc: binder_alloc for this proc
+ *
+ * Return: count of allocated buffers
+ */
+>>>>>>> f6f39f1... FROMLIST: binder: move binder_alloc to separate file
 int binder_alloc_get_allocated_count(struct binder_alloc *alloc)
 {
 	struct rb_node *n;
@@ -693,13 +946,36 @@ int binder_alloc_get_allocated_count(struct binder_alloc *alloc)
 }
 
 
+<<<<<<< HEAD
+=======
+/**
+ * binder_alloc_vma_close() - invalidate address space
+ * @alloc: binder_alloc for this proc
+ *
+ * Called from binder_vma_close() when releasing address space.
+ * Clears alloc->vma to prevent new incoming transactions from
+ * allocating more buffers.
+ */
+>>>>>>> f6f39f1... FROMLIST: binder: move binder_alloc to separate file
 void binder_alloc_vma_close(struct binder_alloc *alloc)
 {
 	WRITE_ONCE(alloc->vma, NULL);
 	WRITE_ONCE(alloc->vma_vm_mm, NULL);
+<<<<<<< HEAD
 	barrier();
 }
 
+=======
+}
+
+/**
+ * binder_alloc_init() - called by binder_open() for per-proc initialization
+ * @alloc: binder_alloc for this proc
+ *
+ * Called from binder_open() to initialize binder_alloc fields for
+ * new binder proc
+ */
+>>>>>>> f6f39f1... FROMLIST: binder: move binder_alloc to separate file
 void binder_alloc_init(struct binder_alloc *alloc)
 {
 	alloc->tsk = current->group_leader;
