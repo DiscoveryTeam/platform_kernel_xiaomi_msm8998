@@ -1,15 +1,5 @@
 /*
-<<<<<<< HEAD
- * Copyright (C) 2016 Google, Inc.
- * Copyright (C) 2017 XiaoMi, Inc.
- *
- * Based on, but no longer compatible with, the original
- * OpenBinder.org binder driver interface, which is:
- *
- * Copyright (c) 2005 Palmsource, Inc.
-=======
  * Copyright (C) 2017 Google, Inc.
->>>>>>> f6f39f1... FROMLIST: binder: move binder_alloc to separate file
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -36,8 +26,6 @@
 extern struct list_lru binder_alloc_lru;
 struct binder_transaction;
 
-<<<<<<< HEAD
-=======
 /**
  * struct binder_buffer - buffer used for binder transactions
  * @entry:              entry alloc->buffers
@@ -55,7 +43,6 @@ struct binder_transaction;
  *
  * Bookkeeping structure for binder transaction buffers
  */
->>>>>>> f6f39f1... FROMLIST: binder: move binder_alloc to separate file
 struct binder_buffer {
 	struct list_head entry; /* free and allocated entries by address */
 	struct rb_node rb_node; /* free entry by size or allocated entry */
@@ -75,8 +62,6 @@ struct binder_buffer {
 	void *data;
 };
 
-<<<<<<< HEAD
-=======
 /**
  * struct binder_lru_page - page object used for binder shrinker
  * @page_ptr: pointer to physical page in mmap'd space
@@ -113,7 +98,6 @@ struct binder_lru_page {
  * calls. The address space is used for both user-visible buffers and for
  * struct binder_buffer objects used to track the user buffers
  */
->>>>>>> f6f39f1... FROMLIST: binder: move binder_alloc to separate file
 struct binder_alloc {
 	struct mutex mutex;
 	struct task_struct *tsk;
@@ -161,15 +145,12 @@ extern void binder_alloc_print_allocated(struct seq_file *m,
 void binder_alloc_print_pages(struct seq_file *m,
 			      struct binder_alloc *alloc);
 
-<<<<<<< HEAD
-=======
 /**
  * binder_alloc_get_free_async_space() - get free space available for async
  * @alloc:	binder_alloc for this proc
  *
  * Return:	the bytes remaining in the address-space for async transactions
  */
->>>>>>> f6f39f1... FROMLIST: binder: move binder_alloc to separate file
 static inline size_t
 binder_alloc_get_free_async_space(struct binder_alloc *alloc)
 {
@@ -181,8 +162,6 @@ binder_alloc_get_free_async_space(struct binder_alloc *alloc)
 	return free_async_space;
 }
 
-<<<<<<< HEAD
-=======
 /**
  * binder_alloc_get_user_buffer_offset() - get offset between kernel/user addrs
  * @alloc:	binder_alloc for this proc
@@ -190,18 +169,11 @@ binder_alloc_get_free_async_space(struct binder_alloc *alloc)
  * Return:	the offset between kernel and user-space addresses to use for
  * virtual address conversion
  */
->>>>>>> f6f39f1... FROMLIST: binder: move binder_alloc to separate file
 static inline ptrdiff_t
 binder_alloc_get_user_buffer_offset(struct binder_alloc *alloc)
 {
 	/*
 	 * user_buffer_offset is constant if vma is set and
-<<<<<<< HEAD
-	 * undefined if vma is not set
-	 */
-	BUG_ON(!alloc->vma);
-	return READ_ONCE(alloc->user_buffer_offset);
-=======
 	 * undefined if vma is not set. It is possible to
 	 * get here with !alloc->vma if the target process
 	 * is dying while a transaction is being initiated.
@@ -209,7 +181,6 @@ binder_alloc_get_user_buffer_offset(struct binder_alloc *alloc)
 	 * the transaction will fail.
 	 */
 	return alloc->user_buffer_offset;
->>>>>>> f6f39f1... FROMLIST: binder: move binder_alloc to separate file
 }
 
 #endif /* _LINUX_BINDER_ALLOC_H */
